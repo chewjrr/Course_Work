@@ -77,33 +77,33 @@ public:
 };
 class Drive{
 private:
-	char q0 = 0;
-	char q1 = 0;
-	char q2 = 0;
-	char q3 = 0;
+	bool q0 = 0;
+	bool q1 = 0;
+	bool q2 = 0;
+	bool q3 = 0;
 public:
-	void SetQ0(char value) {
+	void SetQ0(bool value) {
 		q0 = value;
 	}
-	void SetQ1(char value) {
+	void SetQ1(bool value) {
 		q1 = value;
 	}
-	void SetQ2(char value) {
+	void SetQ2(bool value) {
 		q2 = value;
 	}
-	void SetQ3(char value) {
+	void SetQ3(bool value) {
 		q3 = value;
 	}
-	char GetQ0() {
+	bool GetQ0() {
 		return q0;
 	}
-	char GetQ1() {
+	bool GetQ1() {
 		return q1;
 	}
-	char GetQ2() {
+	bool GetQ2() {
 		return q2;
 	}
-	char GetQ3() {
+	bool GetQ3() {
 		return q3;
 	}
 };
@@ -185,6 +185,7 @@ public:
 	Drive drive{};
 	Container container{};
 	Sensor sensor{};
+	char check = 0;
 	void Step_1() {
 		int a;
 		container.Set_N();
@@ -198,18 +199,24 @@ public:
 		}
 	}
 	void Step_2() {
-		ui.SetI4(0);
-		if (container.Get_N1() != 0) {
-			container.Set_N1(container.Get_N1() - 1);
-			container.Set_Num(1);
-			Step_2b();
+		if (check == 0) {
+			ui.SetI4(0);
+			if (container.Get_N1() != 0) {
+				container.Set_N1(container.Get_N1() - 1);
+				container.Set_Num(1);
+				Step_2b();
+			}
+			else if (container.Get_N2() != 0) {
+				container.Set_N2(container.Get_N2() - 1);
+				container.Set_Num(2);
+				Step_2b();
+			}
+			else Step_2a();
 		}
-		else if (container.Get_N2() != 0) {
-			container.Set_N2(container.Get_N2() - 1);
-			container.Set_Num(2);
-			Step_2b();
+		else if (check == 8) {
+			Step_8();
 		}
-		else Step_2a();
+		else Step_9();
 	}
 	void Step_2a() {
 		drive.SetQ0(0);
@@ -219,7 +226,7 @@ public:
 		ui.SetQ8(1);
 		std::cout << "2а) Контейнер с заготовками пустой. Вызов сигнала и остановка ленты." << std::endl;
 		std::cout << "Выполнение работы технологического процесса завершено." << std::endl;
-		std::cout << "Бракованых деталей: " << container.Get_N3Res() - container.Get_N3() << std::endl << std::endl;
+		std::cout << "Бракованых компонентов: " << container.Get_N3Res() - container.Get_N3() << std::endl << std::endl;
 		Rec("2a)");
 
 	}
@@ -239,11 +246,18 @@ public:
 		sensor.Set_I0(0);
 		sensor.Set_I1(0);
 		drive.SetQ1(0);
-		std::cout << "3) Заготовка едет по ленте, но ещё не достигла датчика печати." << std::endl;
+		std::cout << "3) Компонент едет по ленте, но ещё не достиг датчика печати." << std::endl;
 		int rand_num = rand() % 100 + 1;//создаем "шанс" брака детали
 		if (rand_num >= 1 && rand_num <= 99) { //деталь не бракована 
 			Rec("3)");
-			Step_4();
+			int rand_num = rand() % 100 + 1;//создаем "шанс" неизвыестного состояния процесса
+			if (rand_num >= 1 && rand_num <= 99) {
+				Step_4();
+			}
+			else {
+				Step_9();
+			}
+			
 		}
 		else {
 			if (container.Get_N3() != 0) {
@@ -258,22 +272,29 @@ public:
 	void Step_4() {
 		sensor.Set_I3(1);
 		drive.SetQ3(1);
-		std::cout << "4) Заготовка достигла датчика печати. Печать опускается." << std::endl;
+		std::cout << "4) Компонент достиг датчика печати. Печать опускается. Транзисторы напечатаны. " << std::endl;
 		Rec("4)");
 		Step_5();
 	}
 	void Step_5() {
 		sensor.Set_I3(0);
 		drive.SetQ3(0);
-		std::cout << "5) Деталь продолжает движение по ленте." << std::endl;
-		Rec("5)");
-		Step_6();
+		int rand_num1 = rand() % 100 + 1;
+		if(rand_num1 >= 1 && rand_num1 <= 99) {	//процесс не остонавливается пользователем
+			std::cout << "5) Компонент продолжает движение по ленте." << std::endl;
+			Rec("5)");
+			Step_6();
+		}
+		else {
+			Step_8();
+		}
 	}
+		
 	void Step_6() {
 
 		sensor.Set_I0(1);
 		drive.SetQ2(1);
-		std::cout << "6) Деталь достигла конца ленты. Открывается крышка контейнера для готовых заготовок." << std::endl;
+		std::cout << "6) Компонент достиг конца ленты. Открывается крышка контейнера для готовых заготовок." << std::endl;
 		Rec("6)");
 		Step_7();
 	}
@@ -285,7 +306,7 @@ public:
 		}
 		else if (container.Get_N4() != 0 && container.Get_Num() == 3) {
 			if (container.Get_N3() != 0) {
-				std::cout << "Деталь бракована, и попадает в контейнер под номером 3, в котором осталсоть места еще для " << container.Get_N3() << " деталей." << std::endl;
+				std::cout << "Компонент бракован, и попадает в контейнер под номером 3, в котором осталсоть места еще для " << container.Get_N3() << " деталей." << std::endl;
 				Step_2();
 			}
 			else Step_7a();
@@ -297,7 +318,7 @@ public:
 	void Step_7a() {
 		std::cout << "7а) Контейнер стал заполнен.Останавливаем процесс." << std::endl;
 		std::cout << "Выполнение работы технологического процесса завершено." << std::endl;
-		std::cout << "Бракованых деталей: " << container.Get_N3Res() - container.Get_N3() << std::endl << std::endl;
+		std::cout << "Бракованых компонентов: " << container.Get_N3Res() - container.Get_N3() << std::endl << std::endl;
 		drive.SetQ0(0);
 		sensor.Set_I2(2);
 		ui.SetQ6(0);
@@ -320,10 +341,40 @@ public:
 		}
 	}
 	void Step_8() {
-
+		check = 8;
+		sensor.Set_I0(0);
+		sensor.Set_I1(0);
+		sensor.Set_I2(0);
+		sensor.Set_I3(0);
+		ui.SetI4(0);
+		ui.SetI5(1);
+		drive.SetQ0(0);
+		drive.SetQ1(0);
+		drive.SetQ2(0);
+		drive.SetQ3(0);
+		ui.SetQ6(0);
+		ui.SetQ7(0);
+		ui.SetQ8(0);
+		Rec("8)");
+		std::cout << "8) Процесс остановлен пользователем." << std::endl;
 	}
 	void Step_9() {
-
+		check = 9;
+		sensor.Set_I0(0);
+		sensor.Set_I1(0);
+		sensor.Set_I2(0);
+		sensor.Set_I3(0);
+		ui.SetI4(0);
+		ui.SetI5(1);
+		drive.SetQ0(0);
+		drive.SetQ1(0);
+		drive.SetQ2(0);
+		drive.SetQ3(0);
+		ui.SetQ6(0);
+		ui.SetQ7(0);
+		ui.SetQ8(1);
+		Rec("9)");
+		std::cout << "9) Неизвестное состояние процесса. Отсановка." << std::endl;
 	}
 	void appendToFile(const std::string& filename, const std::vector<std::string>& values) {
 		std::ofstream output(filename, std::ios::app);
@@ -338,21 +389,27 @@ public:
 	void Rec(const std::string& s) {
 		std::string step = s;
 		std::string filename = "data.txt";
-		bool v1 = sensor.Get_I0();
-		bool v2 = sensor.Get_I1();
-		bool v3 = sensor.Get_I2();
-		bool v4 = sensor.Get_I3();
-		bool v5 = ui.GetI4();
-		bool v6 = ui.GetI5();
-		bool v7 = drive.GetQ0();
-		bool v8 = drive.GetQ1();
-		bool v9 = drive.GetQ2();
-		bool v10 = drive.GetQ3();
-		bool v11 = ui.GetQ6();
-		bool v12 = ui.GetQ7();
-		bool v13 = ui.GetQ8();
-		std::vector<std::string> values = { step, std::to_string(v1), std::to_string(v2), std::to_string(v3), std::to_string(v4), std::to_string(v5), std::to_string(v6), std::to_string(v7), std::to_string(v8), std::to_string(v9), std::to_string(v10), std::to_string(v11), std::to_string(v12), std::to_string(v13) };
-		appendToFile(filename, values);
+		if (step != "_________________New Detail______________________") {
+			bool v1 = sensor.Get_I0();
+			bool v2 = sensor.Get_I1();
+			bool v3 = sensor.Get_I2();
+			bool v4 = sensor.Get_I3();
+			bool v5 = ui.GetI4();
+			bool v6 = ui.GetI5();
+			bool v7 = drive.GetQ0();
+			bool v8 = drive.GetQ1();
+			bool v9 = drive.GetQ2();
+			bool v10 = drive.GetQ3();
+			bool v11 = ui.GetQ6();
+			bool v12 = ui.GetQ7();
+			bool v13 = ui.GetQ8();
+			std::vector<std::string> values = { step, std::to_string(v1), std::to_string(v2), std::to_string(v3), std::to_string(v4), std::to_string(v5), std::to_string(v6), std::to_string(v7), std::to_string(v8), std::to_string(v9), std::to_string(v10), std::to_string(v11), std::to_string(v12), std::to_string(v13) };
+			appendToFile(filename, values);
+		}
+		else {
+			std::vector<std::string> values = {step};
+			appendToFile(filename, values);
+		}
 	}
 };
 int main(){
@@ -379,8 +436,15 @@ int main(){
 			controller.Step_1();
 			break;
 		case 2:
+			std::cout << "---------------------------------------------------------------------------------------------------------" << std::endl;
 			std::cout << "Вы выбрали пункт 2." << std::endl;
-			std::cout << "букавы" << std::endl;
+			std::cout << "Эта программа моделирует работу программируемого логического контроллера" << std::endl;
+			std::cout << "В программе симулируется отбраковка деталей. Шанс того, что деталь бракована составляет 1%" << std::endl;
+			std::cout << "Также выполнение программы может приостановится в случае неизвестного состояния датчиков и остановки технологического процесса пользователем" << std::endl;
+			std::cout << "Эти два аспекта тоже симулируются" << std::endl;
+			std::cout << "Данные с датчиков и приводов записываются в файл data.txt, который находится в папке с файлом CourseWork2.cpp" << std::endl;
+			std::cout << "Описание установки: Имеется два контейнера (1 и 2) с необработанными компонентами(заготовками) сначала деталь двигается по конвейеру 1, в конце идет проверка на брак, далее заготовка попадает на ковейер 2 и потом в контейнер 3, или на конвейер 3, ставится печать и в контейнер 4, в зависимости от исправности заготовки. По опустошению первого контейнера, он заменяется на второй." << std::endl;
+			std::cout << "---------------------------------------------------------------------------------------------------------" << std::endl;
 			break;
 		case 3:
 			std::cout << "Выход из программы." << std::endl;
